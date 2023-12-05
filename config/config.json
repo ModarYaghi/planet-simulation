@@ -1,0 +1,15 @@
+{
+  "au": 149.6e9,
+  "g": 6.67408e-11,
+  "height": 800,
+  "scale": 250,
+  "timestep": 86400,
+  "width": 800,
+  "text_color": [
+    255,
+    255,
+    255
+  ],
+  "font_name": "comicsans",
+  "font_size": 16
+}
