@@ -12,6 +12,7 @@ YELLOW = (255, 174, 66)
 BLUE = (100, 149, 237)
 RED = (188, 39, 50)
 GREEN = (0, 255, 0)
+GRAY = (128, 128, 128)
 DARK_GRAY = (80, 78, 81)
 
 FONT = pygame.font.SysFont("comicsans", 16)
@@ -36,6 +37,8 @@ class Planet:
 
         self.x_vel = 0
         self.y_vel = 0
+
+        self.satellites = []  # List of satellites
 
     def draw(self, win):
         """
@@ -82,6 +85,12 @@ class Planet:
                 distance_text,
                 (x - distance_text.get_width() / 2, y - distance_text.get_height() / 2),
             )
+
+            # Draw only the new segment of the orbit
+            if len(self.orbit) > 1:
+                pygame.draw.lines(
+                    win, self.color, False, self.orbit[-2:], 2
+                )  # Draw only the new segment of the orbit
 
     def attraction(self, other):
         """
@@ -181,6 +190,40 @@ class Planet:
         # This keeps track of the path that 'self' has traversed
         self.orbit.append((self.x, self.y))
 
+        # Iterate through each satellite of 'self'
+        for satellite in self.satellites:
+            satellite.update_position(planets, self)
+
+        # Limit the orbit list to a maximum of 500 points
+        # This is to prevent the orbit list from growing too large
+        # and slowing down the simulation
+        if len(self.orbit) > 500:
+            self.orbit.pop(0)
+
+
+class Satellite(Planet):
+    def update_position(self, planets, parent):
+        # Update satellite's position based on gravitational force from the parent planet (Earth)
+        fx, fy = self.attraction(parent)
+
+        # Update satellite's velocity
+        self.x_vel += fx / self.mass * self.TIMESTEP
+        self.y_vel += fy / self.mass * self.TIMESTEP
+
+        # Consider the gravitational influence of other celestial bodies (including the sun)
+        for planet in planets:
+            if planet != parent:
+                fx, fy = self.attraction(planet)
+                self.x_vel += fx / self.mass * self.TIMESTEP
+                self.y_vel += fy / self.mass * self.TIMESTEP
+
+        # Update satellite's position
+        self.x += self.x_vel * self.TIMESTEP + (parent.x - self.x)
+        self.y += self.y_vel * self.TIMESTEP + (parent.y - self.y)
+
+        # Append the new position to the orbit list
+        self.orbit.append((self.x, self.y))
+
 
 def main():
     run = True
@@ -201,6 +244,28 @@ def main():
     venus = Planet(0.723 * Planet.AU, 0, 14, WHITE, 4.867e24)
     venus.y_vel = -35.02 * 1000  # 35.02 km/s
 
+    # Moon parameters
+    # Assuming the Moon's orbit is roughly circular and in the same plane as Earth's orbit around the Sun
+    moon_distance_from_earth = (
+        0.00257 * Planet.AU
+    )  # Average distance from Earth to the Moon
+    moon_orbital_velocity_around_earth = 1.022 * 1000  # Average orbital velocity in m/s
+
+    moon = Satellite(
+        earth.x + moon_distance_from_earth,
+        earth.y,
+        4,
+        WHITE,
+        7.34767309e22,
+    )
+    # The Moon's velocity is the sum of Earth's orbital velocity and its own orbital velocity
+    moon.x_vel = earth.x_vel  # 29.783 km/s - Orbital velocity of the Earth
+    moon.y_vel = (
+        earth.y_vel + moon_orbital_velocity_around_earth
+    )  # 1.022 km/s - Relative velocity of the Moon
+
+    earth.satellites.append(moon)
+
     planets = [sun, earth, mars, mercury, venus]
 
     while run:
@@ -214,6 +279,9 @@ def main():
         for planet in planets:
             planet.update_position(planets)
             planet.draw(WIN)
+            for satellite in planet.satellites:
+                satellite.update_position(planets, planet)
+                satellite.draw(WIN)
 
         pygame.display.update()
 
